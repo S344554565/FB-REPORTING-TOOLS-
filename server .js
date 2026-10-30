@@ -12,14 +12,11 @@ const Database = require("better-sqlite3");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const ADMIN_KEY = process.env.ADMIN_KEY;
+const ADMIN_KEY = process.env.ADMIN_KEY || "my-super-secret-admin-key"; 
 const DB_FILE = process.env.DB_FILE || "./data/reports.db";
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 
-if (!ADMIN_KEY || ADMIN_KEY === "change-this-long-random-key") {
-  console.warn("WARNING: Set a strong ADMIN_KEY in .env before production use.");
-}
-
+// Folders create karna agar nahi hain toh
 fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -45,7 +42,9 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("combined"));
-app.use(express.static(path.join(__dirname, "..", "public")));
+
+// Frontend file (index.html) load karne ke liye path fix kiya hai
+app.use(express.static(__dirname));
 
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -166,4 +165,4 @@ app.use((err, _req, res, _next) => {
   res.status(400).json({ error: err.message || "Request failed." });
 });
 
-app.listen(PORT, () => console.log(`Report server: http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Report server running on port: ${PORT}`));
