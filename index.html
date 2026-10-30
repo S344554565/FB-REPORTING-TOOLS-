@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FB Report Management</title>
+  <style>
+    body{font-family:system-ui;margin:0;background:#f5f7fb;color:#172033}
+    main{max-width:900px;margin:40px auto;padding:20px}
+    .card{background:#fff;padding:20px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 18px #0001}
+    input,select,textarea,button{width:100%;box-sizing:border-box;padding:10px;margin:7px 0;border:1px solid #ccd2dd;border-radius:8px}
+    button{cursor:pointer;background:#172033;color:#fff}
+    table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #eee}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:650px){.row{grid-template-columns:1fr}}
+    small{color:#667085}
+  </style>
+</head>
+<body>
+<main>
+  <h1>FB Report Management</h1><p><strong>Owner: MR SURAJ</strong></p>
+  <p><small>Intake and review dashboard. This tool does not submit reports to Facebook.</small></p>
+
+  <section class="card">
+    <h2>Submit report</h2>
+    <form id="reportForm">
+      <label>Facebook URL<input name="targetUrl" required placeholder="https://www.facebook.com/..."></label>
+      <div class="row">
+        <label>Category
+          <select name="category">
+            <option value="impersonation">Impersonation</option>
+            <option value="harassment">Harassment</option>
+            <option value="scam">Scam</option>
+            <option value="spam">Spam</option>
+            <option value="intellectual_property">Intellectual property</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>Reporter (optional)<input name="reporter"></label>
+      </div>
+      <label>Description<textarea name="description" minlength="10" maxlength="5000" required></textarea></label>
+      <label>Screenshot (optional)<input type="file" name="screenshot" accept="image/png,image/jpeg,image/webp"></label>
+      <button>Submit report</button>
+      <p id="msg"></p>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Admin</h2>
+    <input id="key" type="password" placeholder="Admin key">
+    <button onclick="loadReports()">Load reports</button>
+    <div id="reports"></div>
+  </section>
+</main>
+<script>
+const form = document.querySelector("#reportForm");
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const r = await fetch("/api/reports", {method:"POST", body:new FormData(form)});
+  const data = await r.json();
+  document.querySelector("#msg").textContent = r.ok ? `Submitted. Report #${data.id}` : data.error;
+  if (r.ok) form.reset();
+});
+async function loadReports(){
+  const key = document.querySelector("#key").value;
+  const r = await fetch("/api/reports", {headers:{"x-admin-key":key}});
+  const data = await r.json();
+  if (!r.ok) return document.querySelector("#reports").textContent = data.error;
+  document.querySelector("#reports").innerHTML = `<table>
+    <tr><th>ID</th><th>Category</th><th>Status</th><th>Target</th><th>Created</th></tr>
+    ${data.map(x => `<tr>
+      <td>${x.id}</td><td>${x.category}</td><td>
+      <select onchange="updateStatus(${x.id},this.value)">
+        ${["new","reviewing","resolved","rejected"].map(s=>`<option ${s===x.status?"selected":""}>${s}</option>`).join("")}
+      </select></td>
+      <td><a href="${escapeAttr(x.target_url)}" target="_blank" rel="noopener">Open</a></td>
+      <td>${x.created_at}</td>
+    </tr>`).join("")}</table>`;
+}
+async function updateStatus(id,status){
+  const key = document.querySelector("#key").value;
+  await fetch("/api/reports/"+id,{method:"PATCH",headers:{"Content-Type":"application/json","x-admin-key":key},body:JSON.stringify({status})});
+  loadReports();
+}
+function escapeAttr(s){return String(s).replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");}
+</script>
+</body>
+</html>
